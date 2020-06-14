@@ -1,8 +1,7 @@
 import itertools
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
 import heapq
+from .single_mdp import BW4TSingleMDP
 
 # a_map = {0: "^", 1: "<", 2: ">", 3: "v"}
 a_dir = {0: np.array([-1, 0]), 1: np.array([0, -1]), 2: np.array([0, 1]), 3: np.array([1, 0])}
@@ -39,6 +38,11 @@ class BW4T:
 
         self.map[-2, :] &= 7
         self.map[-1, :] &= 0
+
+        # # Additional Wall
+        # self.map[8, 3] &= 11
+        # self.map[8, 4] &= 13
+
         self.goals = {}
         for g, (y, x) in enumerate(itertools.product([1, 5, 9], [1, 4, 7])):
         # for g, (y, x) in enumerate(itertools.product([5, 9], [1, 4, 7])):
@@ -71,6 +75,8 @@ class BW4T:
 
         self.dist = {g:self.calc_min_dist(self.i_grids[p]) for g, p in self.goals.items()}
         self.dist = {g:self.calc_min_dist(self.i_grids[p]) for g, p in self.goals.items()}
+
+        self.single_q = BW4TSingleMDP(self).get_all_q_values()
 
     def _make_valid_moves(self, valid):
         return np.where(np.array([valid & 1 > 0,

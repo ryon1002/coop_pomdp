@@ -3,7 +3,7 @@ import itertools
 import pickle
 import os
 from . import util
-from . import prob_util
+from . import policy_util
 
 
 class CoopIRL(object):
@@ -142,13 +142,13 @@ class CoopIRL(object):
                     # else:
 
                     if algo == 3:
-                        pi = np.apply_along_axis(prob_util._max_q_prob, 1, q_vector_2)
-                        pi = np.apply_along_axis(prob_util._max_q_prob, 0, pi)
+                        pi = np.apply_along_axis(policy_util._max_q_prob, 1, q_vector_2)
+                        pi = np.apply_along_axis(policy_util._max_q_prob, 0, pi)
                         # if s == 0:
                         #     pi[:] = 0
                         #     pi[2] = 1
                     else:
-                        pi = np.apply_along_axis(prob_util._exp_q_prob, 0, q_vector_2, 0.1)
+                        pi = np.apply_along_axis(policy_util._exp_q_prob, 0, q_vector_2, 0.1)
 
                     # pi = np.apply_along_axis(prob_util._exp_q_prob, 0, q_vector_2, 0.1)
                     # if d == 6 and s == 0 and a_r == 0:
@@ -167,7 +167,7 @@ class CoopIRL(object):
                     for th in range(env.th_h):
                         t = np.sum(env.t[a_r, :, s] * pi[:, th][:, np.newaxis], axis=0)
                         update[:, :, th] = np.outer(pi[:, th], t)
-                    update = np.apply_along_axis(prob_util._avg_prob, 0, update)
+                    update = np.apply_along_axis(policy_util._avg_prob, 0, update)
 
                     p_a_vector = []
                     p_a_vector_nums = []
@@ -246,7 +246,7 @@ class CoopIRL(object):
         self.h_belief = np.empty((env.th_h, env.s, env.th_r))
         self.h_belief[:, :, :] = 0.5
         for th_h in range(env.th_h):
-            prob = np.apply_along_axis(prob_util._exp_q_prob, 0, q[:, th_h], beta)
+            prob = np.apply_along_axis(policy_util._exp_q_prob, 0, q[:, th_h], beta)
             s_candi = {0}
             while len(s_candi) > 0:
                 s = s_candi.pop()

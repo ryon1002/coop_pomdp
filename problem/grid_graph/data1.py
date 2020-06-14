@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 # import networkx
 import time
-from algo.prob_util import exp_prob
+from algo.policy_util import exp_prob
 
 
 class GraphData(object):

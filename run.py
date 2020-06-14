@@ -1,129 +1,90 @@
-import matplotlib.pyplot as plt
+import joblib
 import numpy as np
+from collections import defaultdict
 
-from algo.double_coop_irl_3 import CoopIRL
-from algo.vi import do_value_iteration
-from problem.bw4t.world import BW4T
-from problem.bw4t.task_graph import TaskGraph
-from problem.bw4t.coop_pomdp import BW4TCoopPOMDP
-from problem.bw4t.coop_mdp_set import BW4TCoopMDPSet
-from problem.bw4t.single_mdp import BW4TSingleMDP
-from problem.bw4t.no_human_agent import Agent
 from problem.bw4t.human_agent import Human
-import pickle
-import datetime
+from problem.bw4t.no_human_agent import Agent
 
 
-def _make_belief(dim, n_max):
-    if dim == 2:
-        for i in range(n_max):
-            yield [i, n_max - i]
-    else:
-        for i in range(n_max):
-            for rest in _make_belief(dim - 1, n_max - i):
-                yield [i] + rest
+def episode(env, agent, human, s, task, first_a_h, log=False):
+    agent.set_task(task, s, True)
+    human.set_task(task, s, True)
+    if log:
+        print()
+        print("target", human.target)
+    change_task = False
+    add_count = 0
+    goal_list = []
+    if first_a_h is not None:
+        agent.update_belief(s, first_a_h)
+        s = env.get_next_s(s, None, first_a_h)
+    #
 
-
-def make_belief(dim):
-    if dim == 1:
-        return np.array([[1]])
-    b = [i for i in _make_belief(dim, 11)]
-    b = np.array(b) * 0.1
-    # b = [i for i in _make_belief(dim, 6)]
-    # b = np.array(b) * 0.2
-    return b
+    # agent.update_belief(s, None)
+    for count in range(1000):
+        goals = env.check_goal(s)
+        for g in goals:
+            if g in task.next:
+                if g[0] == "h" and g[1] != 10 and task.blocks[g[1]] == 3:
+                    add_count += 20
+                if g[0] == "h":
+                    agent.reset_belief_flag = True
+                    # add_count += 20
+                task = task.next[g]
+                goal_list.append(g)
+                if task is None:
+                    if log:
+                        print("---goal--- ", g, -1)
+                    return count + add_count, tuple(goal_list)
+                if log:
+                    print("---goal--- ", g, task.id)
+                change_task = True
+        if change_task:
+            agent.set_task(task, s, False)
+            human.set_task(task, s, False)
+            if log:
+                print("target", human.target)
+        a_r = agent.act(s)
+        human.update_target(s, a_r)
+        a_h = human.act(s)
+        agent.update_belief(s, a_h)
+        s = env.get_next_s(s, a_r, a_h)
+        if log:
+            print(a_r, a_h)
+            print(env.get_pos(s))
 
 
 if __name__ == '__main__':
-    algo = 1
-    target = -1
+    policy_dir, algo = "base", 0
+    # policy_dir, algo = "own", 1
 
-    # world = BW4T()
-    # task_graph = TaskGraph("problem/bw4t/map_data/map3.yaml")
-    # # world.print_world()
-    # # exit()
-    # single_mdp = BW4TSingleMDP(world)
-    # max_policies = single_mdp.get_all_policies("max")
-    # policies = single_mdp.get_all_policies("exp")
-    # env = BW4TCoopPOMDP(world, max_policies, policies)
-    # # env = BW4TCoopPOMDP(world, policies, policies)
-    # # env = BW4TCoopPOMDP(world, max_policies)
-    # print(env.get_s((4, 10), (12, 1)))
-    # env_set = BW4TCoopMDPSet(env, world, max_policies, task_graph)
-    # pickle.dump((env, task_graph, env_set), open("results/bw4t/env.pkl", "wb"))
-    # # print(env.get_s((4, 10), (12, 1)))
-    # exit()
+    result_dir = "results/bw4t/5"
+    policy_dir = f"{result_dir}/policy_{policy_dir}/"
 
-    # env, task_graph, env_set = pickle.load(open("tmp.pkl", "rb"))
-    # # print(env.get_s((4, 10), (12, 1)))
-    # # for t_id in range(6):
-    # for t_id in range(len(task_graph.task_network)):
-    #     print(t_id)
-    #     env.set_world(env_set, task_graph, t_id)
-    #
-    #     b = make_belief(env.th)
-    #     st = datetime.datetime.now()
-    #     env.calc_a_vector(21, b)
-    #     pickle.dump(env.a_vector_a, open(f"results/bw4t/policy_o_{t_id}.pkl", "wb"))
-    #     # base_s = env.get_s((4, 10), (12, 1))
-    #     check_s = env.get_s((4, 5), (12, 8))
-    #     for a_r in range(env.a_r):
-    #         # v = np.array(env.value_a(check_s, a_r, [0.25, 0.25, 0.25, 0.25]))
-    #         print(a_r)
-    #         print(env.a_vector_a[check_s][a_r])
-    # exit()
+    base_env, task_graph, env_set = joblib.load(f"{result_dir}/env/base_env.pkl")
+    task = task_graph.task_map[0]
+    # start_s = base_env.get_s((4, 10), (12, 1))
+    # start_s = base_env.get_s((4, 8), (6, 0))
+    # start_s = base_env.get_s((7, 10), (8, 4))
+    start_s, first_a_h = base_env.get_s((5, 10), (8, 2)), 2
+    # start_s = base_env.get_s((4, 8), (6, 0))
 
-    # env, task_graph, env_set = pickle.load(open("tmp.pkl", "rb"))
-    # policy = pickle.load(open(f"results/bw4t/policy_5.pkl", "rb"))
-    # s = env.get_s((4, 5), (12, 8))
-    # for a_r in range(env.a_r):
-    #     print(policy[s][a_r])
-    # exit()
+    agent = Agent(base_env, env_set, policy_dir, 1)
+    human = Human(base_env, env_set, 1)
 
-    env, task_graph, env_set = pickle.load(open("results/bw4t/env.pkl", "rb"))
-    t_id = n_t_id = 0
-    policies = []
-    for t_id in range(len(task_graph.task_network)):
-        # policies.append(pickle.load(open(f"results/bw4t/policy_o_{t_id}.pkl", "rb")))
-        policies.append(pickle.load(open(f"results/bw4t/policy_{t_id}.pkl", "rb")))
-    s = env.get_s((4, 10), (12, 1))
-
-    policy = policies[t_id]
-    task_net = task_graph.task_network[t_id]
-    agent = Agent(env, env.r_policies, task_graph)
-    agent.set_task(t_id)
-    agent.set_policy(policy)
-    agent.reset_belief()
-    human = Human(env, env_set, env.r_policies, task_graph)
-    human.set_task(t_id)
-    count = 0
-    while True:
-        print(env.get_pos(s))
-        goals = env.check_goal(s)
-        for g in goals:
-            if g in task_net:
-                n_t_id = task_net[g]
-        if n_t_id != t_id:
-            t_id = n_t_id
-            if t_id == -1:
-                break
-            policy = policies[t_id]
-            agent.set_task(t_id)
-            agent.set_policy(policy)
-            agent.reset_belief()
-            human.set_task(t_id)
-            task_net = task_graph.task_network[t_id]
-            if ("h", human.target) not in task_net:
-                human.target = None
-            print("---goal---")
-        a_r = agent.act(s)
-        t_s = env.get_next_s(s, a_r, None)
-        human.update_belief(s, a_r)
-        a_h = human.act(s)
-        # agent.update_belief(s, a_h)
-        # print(agent.belief)
-        s = env.get_next_s(s, a_r, a_h)
-        print(a_r, a_h)
-        count += 1
-    print(count)
-
+    counts = []
+    goals_dict = defaultdict(int)
+    log = False
+    # for _ in range(1):
+    for _ in range(100):
+    # for _ in range(1000):
+        count, goals = episode(base_env, agent, human, start_s, task, first_a_h,  log)
+        counts.append(count)
+        goals_dict[(count, goals)] += 1
+        # if count > 24:
+        #     print("break", count)
+        #     break
+        # print()
+    for k, v in sorted(goals_dict.items(), key=lambda x:x[1], reverse=True):
+        print(v, k)
+    print(np.mean(counts))

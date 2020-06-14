@@ -46,29 +46,23 @@ class CoopPOMDP(object):
         self.calc_a_vector(d - 1, bs, False)
         a_vector = {}
         for s in range(self.s):
-            # a_vector[s] = np.zeros((self.a_r, self.th))
             a_vector[s] = {}
             for a_r in range(self.a_r):
                 p_a_vector = []
                 p_a_vector_nums = []
                 for a_h in range(self.a_h):
-                    # tmp_p_a_vector = np.empty((0, self.th))
-                    # for ns, _p in self.ns[s][a_r][a_h]:
-                    #     tmp_p_a_vector = np.concatenate(
-                    #         [tmp_p_a_vector, self.a_vector[ns] * self.update[a_r, a_h, s, ns]])
                     ns = self.ns[s][a_r][a_h][0][0]
                     tmp_p_a_vector = self.a_vector[ns] * self.update[a_r, a_h, s, ns] + \
                                      self.o[:, a_r, s, a_h] * self.r[a_r, a_h, s]
+
                     # tmp = np.dot(self.a_vector[ns], self.i_pi_r[s, a_r]) * self.update[a_r, a_h, s, ns]
-                    # tmp_p_a_vector = tmp + \
-                    #                  self.o[:, a_r, s, a_h] * self.r[a_r, a_h, s]
+                    # tmp_p_a_vector = tmp + self.o[:, a_r, s, a_h] * self.r[a_r, a_h, s]
+
                     p_a_vector.append(util.unique_for_raw(tmp_p_a_vector))
                     p_a_vector_nums.append(len(p_a_vector[-1]))
                 a_vector_a = np.zeros((np.prod(p_a_vector_nums), self.th))
                 for m, i in enumerate(itertools.product(*[range(l) for l in p_a_vector_nums])):
                     a_vector_a[m] = np.sum([p_a_vector[n][j] for n, j in enumerate(i)], axis=0)
-                # a_vector_a = util.unique_for_raw(a_vector_a)
-                # a_vector[s][a_r] = self.sum_r[a_r, s, :] + a_vector_a
                 a_vector[s][a_r] = util.unique_for_raw(a_vector_a)
         print(d)
         if with_a:
